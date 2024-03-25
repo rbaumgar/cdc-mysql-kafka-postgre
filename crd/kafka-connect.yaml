@@ -1,0 +1,60 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  annotations:
+    strimzi.io/use-connector-resources: 'true'
+  name: debezium
+spec:
+  bootstrapServers: 'my-cluster-kafka-bootstrap:9092'
+  build:
+    output:
+      image: 'debezium-streams-connect:latest'
+      type: imagestream
+    plugins:
+      - artifacts:
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/debezium/debezium-connector-mysql/2.3.7.Final-redhat-00001/debezium-connector-mysql-2.3.7.Final-redhat-00001-plugin.zip'
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/apicurio/apicurio-registry-distro-connect-converter/2.4.4.Final-redhat-00002/apicurio-registry-distro-connect-converter-2.4.4.Final-redhat-00002.zip'
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/debezium/debezium-scripting/2.3.7.Final-redhat-00001/debezium-scripting-2.3.7.Final-redhat-00001.zip'
+          - type: jar
+            url: 'https://repo1.maven.org/maven2/org/codehaus/groovy/groovy/3.0.11/groovy-3.0.11.jar'
+          - type: jar
+            url: 'https://repo1.maven.org/maven2/org/codehaus/groovy/groovy-jsr223/3.0.11/groovy-jsr223-3.0.11.jar'
+        name: debezium-connector-mysql
+      - artifacts:
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/debezium/debezium-connector-postgres/2.3.7.Final-redhat-00001/debezium-connector-postgres-2.3.7.Final-redhat-00001-plugin.zip'
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/apicurio/apicurio-registry-distro-connect-converter/2.4.4.Final-redhat-00002/apicurio-registry-distro-connect-converter-2.4.4.Final-redhat-00002.zip'
+          - type: zip
+            url: 'https://maven.repository.redhat.com/ga/io/debezium/debezium-scripting/2.3.7.Final-redhat-00001/debezium-scripting-2.3.7.Final-redhat-00001.zip'
+          - type: jar
+            url: 'https://repo1.maven.org/maven2/org/codehaus/groovy/groovy/3.0.11/groovy-3.0.11.jar'
+          - type: jar
+            url: 'https://repo1.maven.org/maven2/org/codehaus/groovy/groovy-jsr223/3.0.11/groovy-jsr223-3.0.11.jar'
+        name: debezium-connector-postgres
+      - artifacts:
+          - type: zip
+            url: https://maven.repository.redhat.com/ga/io/debezium/debezium-connector-jdbc/2.3.7.Final-redhat-00001/debezium-connector-jdbc-2.3.7.Final-redhat-00001-plugin.zip
+        name: debezium-connector-jdbc
+  config:
+    config.providers: 'secrets,configmaps'
+    config.providers.configmaps.class: io.strimzi.kafka.KubernetesConfigMapConfigProvider
+    config.providers.secrets.class: io.strimzi.kafka.KubernetesSecretConfigProvider
+
+    config.storage.topic: 'debezium-cluster-configs'
+    group.id: 'debezium-cluster'
+    offset.storage.topic: 'debezium-cluster-offsets'
+    status.storage.topic: 'debezium-cluster-status'
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+  logging:
+    loggers:
+      connect.root.logger.level: WARN
+      logger.name: INFO
+    type: inline
+  replicas: 1
+  version: 3.6.0

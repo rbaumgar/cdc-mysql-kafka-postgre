@@ -1,0 +1,20 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: jdbc-connector 
+  labels:
+    strimzi.io/cluster: debezium
+spec:
+  class: io.debezium.connector.jdbc.JdbcSinkConnector
+  tasksMax: 1  
+  config:
+    connection.url: "jdbc:postgresql://postgres/postgres"
+    connection.username: ${secrets:postgres:database-user}
+    connection.password: ${secrets:postgres:database-password}
+    insert.mode: upsert
+    delete.enabled: true
+    primary.key.mode: record_key
+    schema.evolution: basic
+    database.time_zone: UTC
+
+    topics: mysql.inventory.customers
