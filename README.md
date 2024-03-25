@@ -206,11 +206,11 @@ The KafkaConnector will use a ServiceAccount(SA) `debezium-connect`. This SA nee
 To get access we create a role and a rolebinding for the SA.
 
 ```shell
-cat connector.role.yaml | oc apply -f -
-cat connector.rolebinding | oc apply -f -
+cat crd/connector-role.yaml | envsubst | oc apply -f -
+cat crd/connector-rolebinding.yaml | envsubst | oc apply -f -
 ```
 
-Important the rolebinding contains the value of the current project in the `namespace`.
+Important the rolebinding contains the value of the current project in the `namespace`. The value will be replaced by the `envsubst` command.
 
 Use the following registration resource, which is included in the scenario environment: `mysql-connector.yaml`.
 
@@ -233,7 +233,7 @@ INFO: Connected to mysql:3306 at mysql-bin.000003/441 (sid:184054, cid:12)
 
 Important is the info message `Connected to mysql:3306`.
 
-Warnings with `LEADER_NOT_AVAILABLE`can be ignored.
+Warnings with `LEADER_NOT_AVAILABLE` can be ignored.
 
 Enter Ctrl+C to stop the process.
 
@@ -263,7 +263,7 @@ test                                                                           m
 
 Remember that AMQ Streams Operators also manage the topics of the Apache Kafka ecosystem.
 
-In the list `mysql.inventory.` are all tables available which are found in the source inventory database. 
+In the list `mysql.inventory.` are all available tables that are found in the source inventory database. 
 
 ### Verify that data is emitted from MySQL to Kafka
 Check the content of the `customers` table in MySQL source database.
