@@ -157,10 +157,6 @@ oc create secret generic mysql-secret \
 Create a simple MySQL database and add the secret with the following commands:
 ```shell
 oc new-app -l app=mysql --name=mysql quay.io/debezium/example-mysql:latest 
-# \
-#            -e MYSQL_ROOT_PASSWORD=debezium \
-#            -e MYSQL_USER=mysqluser \
-#            -e MYSQL_PASSWORD=mysqlpw
 --> Found container image 864478b (5 hours old) from quay.io for "quay.io/debezium/example-mysql:latest"
 
     * An image stream tag will be created as "mysql:latest" that will track this image
@@ -697,7 +693,7 @@ You are done!
 ## Additional features of the Kafka Connect
 
 ## Clean up
-
+```shell
 oc delete kafkaconnector jdbc-connector, mysql-connector
 oc delete kafkaconnect debezium
 oc delete bc debezium-build-connect
@@ -708,3 +704,4 @@ oc delete secret mysql-secret
 oc delete rolebindig connector-role-binding
 oc delete role connector-role
 oc delete project $PROJECT
+```
