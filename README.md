@@ -4,24 +4,26 @@
 
 *By Robert Baumgartner, Red Hat Austria, March 2024 (OpenShift 4.14)*
 
-In this blog I will guide you on how to use Debezium - Change Data Capture (CDC) together with Red Hat AMQ Streams / Kafka. Data are streamed via Kafka from a MySQL database into a PostgreSQL database.
+In this blog, I will guide you on how to use Debezium - Change Data Capture (CDC) together with Red Hat AMQ Streams / Kafka. Data are streamed via Kafka from a MySQL database into a PostgreSQL database.
 
-This document is based on online training [Change data capture with Debizium](https://developers.redhat.com/courses/camel-k/data-capture-debezium)
-.
+This document is based on online training [Change data capture with Debizium](https://developers.redhat.com/courses/camel-k/data-capture-debezium).
 
 ## Installed Operators
-The *Red Hat AMQ Streams Operator* is pre-installed in my cluster. Because we don't have to install the Operators in this scenario, `admin` permissions are not required to complete the steps in this document.
-In your actual deployment, to make an Operator available for all projects in a cluster, you must be logged in `cluster-admin` permission before you install the Operator.
+The *Red Hat AMQ Streams Operator* is required in the cluster. 
+To make an Operator available for all projects in a cluster, you must be logged in `cluster-admin` permission before you install the Operator.
+
+If the Operator is already available, `admin` permissions are not required to complete the steps in this document.
+
 
 ## Required Tools
-`jq` is required to format json data.
+`jq` is required to format JSON data.
 
 ## Creating a Namespace
 Create a namespace (project) with the name `debeziu` for the AMQ Streams Kafka Cluster Operator:
 ```shell
-export PROJECT=debezium
-oc new-project $PROJECT
-Already on project "debezium" on server "https://api.example.com:6443".
+$ export PROJECT=debezium
+$ oc new-project $PROJECT
+Now using project "debezium" on server "https://api.example.com:6443".
 
 You can add applications ...
 ```
@@ -31,7 +33,7 @@ Create a Kafka cluster named `my-cluster` that has one ZooKeeper node and one Ka
 
 Create the Kafka cluster by applying the following command:
 ```shell
-oc apply -f crd/kafka-cluster.yaml
+$ oc apply -f crd/kafka-cluster.yaml
 kafka.kafka.strimzi.io/my-cluster created
 ```
 ## Checking the status of the Kafka cluster
@@ -39,7 +41,7 @@ Verify that the ZooKeeper and Kafka pods are deployed and running in the cluster
 
 Enter the following command to check the status of the pods:
 ```shell
-oc get pods -w
+$ oc get pods -w
 NAME                                          READY   STATUS              RESTARTS   AGE
 my-cluster-zookeeper-0                        1/1     Running             0          26s
 my-cluster-kafka-0                            0/1     ContainerCreating   0          0s
@@ -62,16 +64,16 @@ The ZooKeeper and Kafka clusters are created in Kubernetes as StatefulSets.
 Enter the following command to send a message to the broker that you just deployed on the topic `test`:
 
 ```shell
-echo "Hello world" | oc exec -i -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic test
+$ echo "Hello world" | oc exec -i -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic test
 [2024-02-23 12:16:20,489] WARN [Producer clientId=console-producer] Error while fetching metadata with correlation id 1 : {test=LEADER_NOT_AVAILABLE} (org.apache.kafka.clients.NetworkClient)
 ```
 The command does not return any output unless it fails. If you see warning messages like above you can ignore them.
-The warning is generated when the producer requests metadata for the topic, because the producer wants to write to a topic and broker partition leader that does not exist yet.
+The warning is generated when the producer requests metadata for the topic because the producer wants to write to a topic and broker partition leader that does not exist yet.
 
 Enter the following command to retrieve a message from the broker:
 
 ```shell
-oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning --max-messages 1
+$ oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning --max-messages 1
 Hello world
 Processed a total of 1 messages
 ```
@@ -94,16 +96,16 @@ To save some time, we have already created the required content in the `kafka-co
 
 To build and deploy the Kafka Connect with the custom image, enter the following command:
 ```shell
-oc create is debezium-streams-connect
+$ oc create is debezium-streams-connect
 imagestream.image.openshift.io/debezium-streams-connect created
-oc apply -f crd/kafka-connect.yaml
+$ oc apply -f crd/kafka-connect.yaml
 kafkaconnect.kafka.strimzi.io/debezium created
 ```
 The Kafka Connect pod `debezium-connect` is deployed.
 
 Check the pod status:
 ```shell
-oc get pods -w -l app.kubernetes.io/name=kafka-connect
+$ oc get pods -w -l app.kubernetes.io/name=kafka-connect
 NAME                 READY   STATUS              RESTARTS   AGE
 debezium-connect-0   0/1     ContainerCreating   0          0s
 debezium-connect-0   1/1     Running             0          19s
@@ -118,7 +120,7 @@ After the Connect pod is running, you can verify that the Debezium connectors ar
 
 List the connector plugins that are available on the Kafka Connect node:
 ```shell
-oc get kafkaconnect/debezium -o json | jq .status.connectorPlugins
+$ oc get kafkaconnect/debezium -o json | jq .status.connectorPlugins
 [
   {
     "class": "io.debezium.connector.jdbc.JdbcSinkConnector",
@@ -146,17 +148,18 @@ The Debezium connector is now available for use on the Connect node.
 
 Generate two random passwords with `openssl` command and a secret for the MySQL database.
 ```shell
-ROOTPWD=`openssl rand -base64 12`
-USERPWD=`openssl rand -base64 12`
-oc create secret generic mysql-secret \
+$ ROOTPWD=`openssl rand -base64 12`
+$ USERPWD=`openssl rand -base64 12`
+$ oc create secret generic mysql-secret \
                          --from-literal=user=mysqluser \
                          --from-literal=password=$USERPWD \
                          --from-literal=root_password=$ROOTPWD
+secret/mysql-secret created                        
 ```
 
 Create a simple MySQL database and add the secret with the following commands:
 ```shell
-oc new-app -l app=mysql --name=mysql quay.io/debezium/example-mysql:latest 
+$ oc new-app -l app=mysql --name=mysql quay.io/debezium/example-mysql:latest 
 --> Found container image 864478b (5 hours old) from quay.io for "quay.io/debezium/example-mysql:latest"
 
     * An image stream tag will be created as "mysql:latest" that will track this image
@@ -170,7 +173,8 @@ oc new-app -l app=mysql --name=mysql quay.io/debezium/example-mysql:latest
      'oc expose service/mysql' 
     Run 'oc status' to view your app.
 
-oc set env deployment/mysql --from secret/mysql-secret --prefix=MYSQL_    
+$ oc set env deployment/mysql --from secret/mysql-secret --prefix=MYSQL_
+deployment.apps/mysql updated
 ```
 
 Wait until the database is up and running.
@@ -186,7 +190,7 @@ mysql-67d5bb6cb-7kn2b   1/1     Running   0          89m
 Grant the required permissions for Debezium to the previously created database user `mysqluser` by the user `root`.
 
 ```shell
-oc exec -i deploy/mysql -- bash -c 'mysql -t -u root -p$MYSQL_ROOT_PASSWORD -e "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO mysqluser" mysql'
+$ oc exec -i deploy/mysql -- bash -c 'mysql -t -u root -p$MYSQL_ROOT_PASSWORD -e "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO mysqluser" mysql'
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ```
 
@@ -196,7 +200,7 @@ The warning can be ignored.
 
 The final step is to create a link between Debezium and the MySQL source database.
 
-As we mentioned in the previous step, we use AMQ Streams custom resources to interact with the Kafka Connect.
+As we mentioned in the previous step, we use AMQ Streams custom resources to interact with Kafka Connect.
 
 ### Create a KafkaConnector resource
 
@@ -206,8 +210,10 @@ The KafkaConnector will use a ServiceAccount(SA) `debezium-connect`. This SA nee
 To get access we create a role and a rolebinding for the SA.
 
 ```shell
-cat crd/connector-role.yaml | envsubst | oc apply -f -
-cat crd/connector-rolebinding.yaml | envsubst | oc apply -f -
+$ cat crd/connector-role.yaml | envsubst | oc apply -f -
+role.rbac.authorization.k8s.io/connector-role created
+$ cat crd/connector-rolebinding.yaml | envsubst | oc apply -f -
+rolebinding.rbac.authorization.k8s.io/connector-role-binding created
 ```
 
 Important the rolebinding contains the value of the current project in the `namespace`. The value will be replaced by the `envsubst` command.
@@ -217,11 +223,11 @@ Use the following registration resource, which is included in the scenario envir
 Register the database source:
 
 ```shell
-oc apply -f crd/mysql-connector.yaml
+$ oc apply -f crd/mysql-connector.yaml
 kafkaconnector.kafka.strimzi.io/mysql-connector created
 
 # Check the Kafka Connect log file to verify that the registration succeeded and Debezium started:
-oc logs -f deploy/debezium-connect
+$ oc logs -f -l app.kubernetes.io/name=kafka-connect
 Connection to the database is confirmed in the output as Connected to mysql.default.svc:3306:
 ...
 Feb 23, 2024 1:00:05 PM com.github.shyiko.mysql.binlog.BinaryLogClient tryUpgradeToSSL
@@ -242,7 +248,7 @@ Now that the database is connected, as changes are committed to the database, De
 
 List the topics that Debezium has created:
 ```shell
-oc get kafkatopics
+$ oc get kafkatopics
 NAME                                                                           CLUSTER      PARTITIONS   REPLICATION FACTOR   READY
 consumer-offsets---84e7a678d08f4bd226872e5cdd4eb527fadc1c6a                    my-cluster   50           1                    True
 debezium-cluster-configs                                                       my-cluster   1            1                    True
@@ -266,11 +272,11 @@ Remember that AMQ Streams Operators also manage the topics of the Apache Kafka e
 In the list `mysql.inventory.` are all available tables that are found in the source inventory database. 
 
 ### Verify that data is emitted from MySQL to Kafka
-Check the content of the `customers` table in MySQL source database.
+Check the content of the table `customers` in the MySQL source database.
 
 Display the source table:
 ```shell
-oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SELECT * from customers" inventory'
+$ oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SELECT * from customers" inventory'
 +------+------------+-----------+-----------------------+
 | id   | first_name | last_name | email                 |
 +------+------------+-----------+-----------------------+
@@ -282,12 +288,12 @@ oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ```
 
-The topic mysql.inventory.customers on the Kafka broker contains messages that represent the data change events from this table in Debezium change event format
+The topic `mysql.inventor.customers` on the Kafka broker contains messages that represent the data change events from this table in the Debezium change event format
 
-Read the messages from the Kafka topic for the customers table:
+Read the messages from the Kafka topic for the table `customer`:
 
 ```shell
-oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mysql.inventory.customers --from-beginning --max-messages 4 | jq
+$ oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mysql.inventory.customers --from-beginning --max-messages 4 | jq
 Processed a total of 4 messages
 ...
 {
@@ -516,19 +522,19 @@ Under `Payload` are the data for one record.
 
 Add a new customer record to the table:
 ```shell
-oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "INSERT INTO customers VALUES(default,\"John\",\"Doe\",\"john.doe@example.org\")" inventory'
+$ oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "INSERT INTO customers VALUES(default,\"John\",\"Doe\",\"john.doe@example.org\")" inventory'
 ```
 
 Update an existing record:
 ```shell
-oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "UPDATE customers SET first_name=\"Anne Marie\" WHERE id=1004;" inventory'
+$ oc exec -i deploy/mysql -- bash -c 'mysql -t -u $MYSQL_USER -p$MYSQL_PASSWORD -e "UPDATE customers SET first_name=\"Anne Marie\" WHERE id=1004;" inventory'
 ```
 
 After adding and updating the record to the database, Debezium emits a new message to the associated topic.
 
 View the messages in the topic again and show only the payload after the change:
 ```shell
-oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mysql.inventory.customers --from-beginning --max-messages 6 | jq .payload.after
+$ oc exec -c kafka my-cluster-kafka-0 -- /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mysql.inventory.customers --from-beginning --max-messages 6 | jq .payload.after
 {
   "id": 1001,
   "first_name": "Sally",
@@ -577,66 +583,83 @@ In the next step, we will create another database and create a copy of the table
 The content of this table will be synchronized by Debezium - Change Data Capture.
 
 ## Create Postgres database
-Generate a random password and create a simple Postgres database with the following command:
+
+Generate a random password and create a simple Postgres database with the following commands:
 ```shell
-POSTGRESPWD=`openssl rand -base64 12`
-oc process -n openshift postgresql-persistent \
-              POSTGRESQL_USER=postgresuser \
-              POSTGRESQL_PASSWORD=$POSTGRESPWD \
-              POSTGRESQL_DATABASE=postgres \
-              DATABASE_SERVICE_NAME=postgres | oc apply -f -
-secret/postgres created
-service/postgres created
-Warning: apps.openshift.io/v1 DeploymentConfig is deprecated in v4.14+, unavailable in v4.10000+
-deploymentconfig.apps.openshift.io/postgres created
+$ POSTGRESPWD=`openssl rand -base64 12`
+
+$ oc create secret generic postgres-secret \
+                           --from-literal user=postgresuser \
+                           --from-literal password=$POSTGRESPWD
+secret/postgres-secret created            
+$ oc new-app -l app=postgres --name postgres registry.redhat.io/rhel8/postgresql-15 \
+                             --env POSTGRESQL_DATABASE=postgres
+--> Found container image 5fd09e1 (4 weeks old) from registry.redhat.io for "registry.redhat.io/rhel8/postgresql-15"
+
+    PostgreSQL 15 
+    ------------- 
+    PostgreSQL is an advanced Object-Relational database management system (DBMS). The image contains the client and server programs that you'll need to create, run, maintain and access a PostgreSQL DBMS server.
+
+    Tags: database, postgresql, postgresql15, postgresql-15
+
+    * An image stream tag will be created as "postgres:latest" that will track this image
+
+--> Creating resources with label app=postgres ...
+    imagestream.image.openshift.io "postgres" created
+    deployment.apps "postgres" created
+    service "postgres" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose service/postgres' 
+    Run 'oc status' to view your app.
+
+$ oc set env deployment/postgres --from secret/postgres-secret \
+                                 --prefix POSTGRESQL_
+deployment.apps/postgres updated
+
+$ oc set volumes deployment/postgres --add --type emptyDir \
+                                     --name postgres-data \
+                                     --mount-path /var/lib/pgsql/data
+deployment.apps/postgres updated                                 
 ```
 
 Wait until the Postgres database is up and running.
 ```bash
-oc get pod -l name=postgres -w
-NAME              READY   STATUS    RESTARTS   AGE
-postgres-1-r76dg  1/1     Running   8s         2m2s
+$ oc get pod -l app=postgres -w
+NAME                      READY   STATUS    RESTARTS   AGE
+postgres-85b48b8d6-6xrlh  1/1     Running   8s         2m2s
 ```
 
-## Add Readiness Check for Postgres Database
+## Grant permissions to the database user
 
-    readinessProbe:
-      exec:
-        command:
-        - psql
-        - -U
-        - postgres
-        - -c
-        - 'select 1'## Create data JDBC sink      
+For Postgres version 15+ right after the DB has been created and the DB user has been created, and before any object creation, connect to the database as user admin gives permissions.
 
-oc set probe dc/postgres --readiness \
-                         -- 'psql -U $POSTGRESQL_USER -c select 1' \
-                         --initial-delay-seconds=10 \
-                         --timeout-seconds=5 \
-                         --success-threshold=1 \
-                         --failure-threshold=3
+```shell
+$ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deployment=postgres) -- bash -c 'psql -U postgres -d $POSTGRESQL_DATABASE -c "GRANT ALL ON SCHEMA public TO $POSTGRESQL_USER"'
+```
 
 ## Create a JDBC Connector resource
 Create a JDBC Connector resource that will register the Postgres target database to the Kafka topic.
 
-The JDBC Connector will use secret of the Postgres database.
+The JDBC Connector will use the secret of the Postgres database.
 
 ```shell
-oc apply -f jdbc-connector.yaml
+$ oc apply -f crd/jdbc-connector.yaml
+kafkaconnector.kafka.strimzi.io/jdbc-connector created
 ```
-
 
 ## Check Postgres database
 
 ```shell
-oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deploymentconfig=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c \\dt'
+$ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deployment=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c \\dt'
                      List of relations
  Schema |           Name            | Type  |    Owner     
 --------+---------------------------+-------+--------------
  public | mysql_inventory_customers | table | postgresuser
 (1 row)
 
-oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deploymentconfig=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c "select * from mysql_inventory_customers"'
+$ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deployment=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE \
+   -c "select * from mysql_inventory_customers"'
   id  | first_name | last_name |         email         
 ------+------------+-----------+-----------------------
  1001 | Sally      | Thomas    | sally.thomas@acme.com
@@ -658,12 +681,13 @@ Add another table name to the topic list. See `jdbc-connector-2.yaml`.
 Update the JDBC Connector and it's done.
 
 ```shell
-oc apply -f jdbc-connector-2.yaml
+$ oc apply -f crd/jdbc-connector-2.yaml
+kafkaconnector.kafka.strimzi.io/jdbc-connector configured
 ```
 
 Check the table list in the Postgres database and the content of the products table.
 ```shell
-oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deploymentconfig=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c \\dt'
+$ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deployment=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c \\dt'
                      List of relations
  Schema |           Name            | Type  |    Owner     
 --------+---------------------------+-------+--------------
@@ -671,7 +695,7 @@ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l 
  public | mysql_inventory_products  | table | postgresuser
 (2 rows)
 
-oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deploymentconfig=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c "select * from mysql_inventory_products"'
+$ oc exec -it $(oc get pods -o custom-columns=NAME:.metadata.name --no-headers -l deployment=postgres) -- bash -c 'psql -U $POSTGRESQL_USER -d $POSTGRESQL_DATABASE -c "select * from mysql_inventory_products"'
  id  |        name        |                       description                       | weight 
 -----+--------------------+---------------------------------------------------------+--------
  101 | scooter            | Small 2-wheel scooter                                   |   3.14
@@ -694,14 +718,40 @@ You are done!
 
 ## Clean up
 ```shell
-oc delete kafkaconnector jdbc-connector, mysql-connector
-oc delete kafkaconnect debezium
-oc delete bc debezium-build-connect
-oc delete is debezium-streams-connect
-oc delete dc,svc,secret postgres
-oc delete deployment, svc, ic mysql
-oc delete secret mysql-secret
-oc delete rolebindig connector-role-binding
-oc delete role connector-role
-oc delete project $PROJECT
+$ oc delete kafkaconnector mysql-connector, jdbc-connector
+kafkaconnector.kafka.strimzi.io "mysql-connector" deleted
+kafkaconnector.kafka.strimzi.io "jdbc-connector" deleted
+
+$ oc delete kafkaconnect debezium
+kafkaconnect.kafka.strimzi.io "debezium" deleted
+
+$ oc delete is debezium-streams-connect
+imagestream.image.openshift.io "debezium-streams-connect" deleted
+
+$ oc delete all -l app=postgres
+pod "postgres-85b48b8d6-6xrlh" deleted
+service "postgres" deleted
+deployment.apps "postgres" deleted
+imagestream.image.openshift.io "postgres" deleted
+
+$ oc delete secret postgres-secret
+secret "postgres-secret" deleted
+
+$ oc delete all -l app=mysql
+service "mysql" deleted
+deployment.apps "mysql" deleted
+replicaset.apps "mysql-679f6dd9cd" deleted
+imagestream.image.openshift.io "mysql" deleted
+
+$ oc delete secret mysql-secret
+secret "mysql-secret" deleted
+
+$ oc delete rolebinding connector-role-binding
+rolebinding.rbac.authorization.k8s.io "connector-role-binding" deleted
+
+$ oc delete role connector-role
+role.rbac.authorization.k8s.io "connector-role" deleted
+
+$ oc delete project $PROJECT
+project.project.openshift.io "debezium" deleted
 ```

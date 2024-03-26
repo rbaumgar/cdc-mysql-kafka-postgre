@@ -12,7 +12,7 @@ spec:
     database.port: "3306"
     # database.user: "mysqluser"
     # database.password: "mysqlpw"
-    database.user: ${secrets:mysql-secret:username}
+    database.user: ${secrets:mysql-secret:user}
     database.password: ${secrets:mysql-secret:password}    
     database.server.id: "184054"
     database.server.name: "dbserver-mysql"

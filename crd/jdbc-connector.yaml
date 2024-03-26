@@ -9,8 +9,8 @@ spec:
   tasksMax: 1  
   config:
     connection.url: "jdbc:postgresql://postgres/postgres"
-    connection.username: ${secrets:postgres:database-user}
-    connection.password: ${secrets:postgres:database-password}
+    connection.username: ${secrets:postgres-secret:user}
+    connection.password: ${secrets:postgres-secret:password}
     insert.mode: upsert
     delete.enabled: true
     primary.key.mode: record_key
